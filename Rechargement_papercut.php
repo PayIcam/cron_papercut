@@ -18,7 +18,7 @@ foreach ($newReloads as $key => $reload) {
     $old_balance = current($DB_papercut->queryFirst('SELECT balance FROM tbl_account WHERE account_name = :user_mail', ['user_mail' => $reload['user_mail']]));
 
     // On ajoute au solde actuel le rechargement
-    $new_balance = $old_balance + $reload['amount'];
+    $new_balance = $old_balance + $reload['amount']/100;
     $DB_papercut->query('UPDATE tbl_account SET balance = :balance WHERE account_name = :user_mail', ['user_mail' => $reload['user_mail'], 'balance' => $new_balance]);
 
     // On dit à payicam que ce rechargement a bien été pris en compte
