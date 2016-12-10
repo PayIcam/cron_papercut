@@ -1,73 +1,31 @@
 <?php
-//echo "tu es sur la bonne page pour le rechargement de la BDD papercut ! #VICTOIRE";
-?>
 
-<br />
+$conf = require __DIR__ . '/conf.php';
 
-<?php
-try
-{
+// Initialisation des connexions aux bases de données
+$confSQL = $conf['papercut_reloads_payicam_mysql'];
+$DB_payicam = new \Payutc\DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
+$confSQL = $conf['papercut_mysql'];
+$DB_papercut = new \Payutc\DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
 
-    $bdd_payicam = new PDO('mysql:host=xxxxx;dbname=xxxx;charset=utf8', 'xxxx', 'xxxxx');
-}
-catch(Exception $e)
-{
+// On récupère les rechargement qui doivent être pris en compte dans papercut
+// id, tra_id, user_mail, amount, tra_date, fetched_by_papercut
+$newReloads = $DB_payicam->query('SELECT * FROM reloads WHERE fetched_by_papercut = 0');
 
-        die('Erreur : '.$e->getMessage());
-}
+$payicamReloadsIdOk = [];
+foreach ($newReloads as $key => $reload) {
+    // On récupére le solde actuel papercut
+    $old_balance = current($DB_papercut->queryFirst('SELECT balance FROM tbl_account WHERE account_name = :user_mail', ['user_mail' => $reload['user_mail']]));
 
-$bdd_payicam -> setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // On ajoute au solde actuel le rechargement
+    $new_balance = $old_balance + $reload['amount'];
+    $DB_papercut->query('UPDATE tbl_account SET balance = :balance WHERE account_name = :user_mail', ['user_mail' => $reload['user_mail'], 'balance' => $new_balance]);
 
-try
-{
-
-    $bdd_local = new PDO('mysql:host=xxxx;dbname=xxxx;charset=utf8', 'xxx', 'xxx');
-}
-catch(Exception $e)
-{
-
-        die('Erreur : '.$e->getMessage());
+    // On dit à payicam que ce rechargement a bien été pris en compte
+    $payicamReloadsIdOk[] = $reload['id'];
 }
 
-$bdd_local -> setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-$reponse = $bdd_payicam->query('SELECT * FROM rechargement WHERE tra_status = 0');
-
-
-foreach ($reponse as $key => $value) 
-
-{
-   // echo($value['amount']);
-    //var_dump($value['amount']);
-
-    $old_amount = $bdd_local->query('SELECT balance FROM tbl_account WHERE account_name ="'.$value['user_mail'].'"');
-
-    $donnees = $old_amount->fetch(PDO::FETCH_COLUMN);
-   // echo($donnees);
-
-    //var_dump($donnees);
-
-    $new_amount = $donnees + $value['amount'];
-
-   // var_dump($new_amount);
-
-    $recharge = $bdd_local->query ('UPDATE tbl_account SET balance="'.$new_amount.'" WHERE account_name ="'.$value['user_mail'].'"');
-
-     $amount_to_check = $bdd_local->query('SELECT balance FROM tbl_account WHERE account_name ="'.$value['user_mail'].'"');
-     $data_to_check = $amount_to_check->fetch(PDO::FETCH_COLUMN);
-
-    	if ($data_to_check ==  $new_amount)
-    	{
-    	$recharge2 = $bdd_payicam->query('UPDATE rechargement SET tra_status = 1 WHERE user_mail ="'.$value['user_mail'].'"');
-            var_dump($recharge2);
-
-    	}
-        else
-            { echo('ca n a pas marche');
-    }
-  //  echo ("L'utilisateur ".$value['user_mail']." à un nouveau solde de".$new_amount.);
-
+if (!empty($payicamReloadsIdOk)) {
+    // On envoie d'une shot les reloads qu'on a pris en compte à payicam pour pas créer 15 000 requêtes SQL
+    $newReloads = $DB_payicam->query('UPDATE reloads SET fetched_by_papercut = 1 WHERE id IN ('.implode(', ', $payicamReloadsIdOk).')');
 }
-
-
-?>
