@@ -1,12 +1,13 @@
 <?php
 
+require __DIR__ . '/DB.php';
 $conf = require __DIR__ . '/conf.php';
 
 // Initialisation des connexions aux bases de données
 $confSQL = $conf['papercut_reloads_payicam_mysql'];
-$DB_payicam = new \Payutc\DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
+$DB_payicam = new DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
 $confSQL = $conf['papercut_mysql'];
-$DB_papercut = new \Payutc\DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
+$DB_papercut = new DB($confSQL['sql_host'], $confSQL['sql_user'], $confSQL['sql_pass'], $confSQL['sql_db']);
 
 // On récupère les rechargement qui doivent être pris en compte dans papercut
 // id, tra_id, user_mail, amount, tra_date, fetched_by_papercut
